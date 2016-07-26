@@ -21,6 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -31,7 +32,16 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>pokemonGo.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
+    <Reference Include="GMap.NET.Core">
+      <HintPath>lib\GMap.NET.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="GMap.NET.WindowsForms">
+      <HintPath>lib\GMap.NET.WindowsForms.dll</HintPath>
+    </Reference>
     <Reference Include="Google.Protobuf">
       <HintPath>..\..\..\packages\Google.Protobuf.3.0.0-beta3\lib\dotnet\Google.Protobuf.dll</HintPath>
     </Reference>
@@ -106,6 +116,11 @@
       <Project>{05D2DA44-1B8E-4CF7-94ED-4D52451CD095}</Project>
       <Name>PokemonGo.RocketAPI</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="pokemonGo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

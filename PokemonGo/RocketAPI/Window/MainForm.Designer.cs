@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             this.logTextBox = new System.Windows.Forms.RichTextBox();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -41,6 +42,7 @@
             this.statsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.showAllToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.useLuckyEggToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.statusStrip1.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -78,7 +80,8 @@
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.todoToolStripMenuItem,
             this.startBotToolStripMenuItem,
-            this.pokemonToolStripMenuItem2});
+            this.pokemonToolStripMenuItem2,
+            this.useLuckyEggToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
             this.menuStrip1.Size = new System.Drawing.Size(905, 24);
@@ -148,6 +151,13 @@
             this.showAllToolStripMenuItem1.Name = "showAllToolStripMenuItem1";
             this.showAllToolStripMenuItem1.Size = new System.Drawing.Size(32, 19);
             // 
+            // useLuckyEggToolStripMenuItem
+            // 
+            this.useLuckyEggToolStripMenuItem.Name = "useLuckyEggToolStripMenuItem";
+            this.useLuckyEggToolStripMenuItem.Size = new System.Drawing.Size(95, 20);
+            this.useLuckyEggToolStripMenuItem.Text = "Use Lucky Egg";
+            this.useLuckyEggToolStripMenuItem.Click += new System.EventHandler(this.useLuckyEggToolStripMenuItem_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -156,6 +166,7 @@
             this.Controls.Add(this.logTextBox);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.menuStrip1);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "MainForm";
             this.Text = "PokemonGo Rocket API";
@@ -184,6 +195,7 @@
         private System.Windows.Forms.ToolStripMenuItem showAllToolStripMenuItem2;
         private System.Windows.Forms.ToolStripMenuItem showAllToolStripMenuItem3;
         private System.Windows.Forms.ToolStripMenuItem statsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem useLuckyEggToolStripMenuItem;
     }
 }
 

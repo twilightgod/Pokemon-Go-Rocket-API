@@ -90,18 +90,18 @@ namespace PokemonGo.RocketAPI
             _authType = AuthType.Google;
             GoogleLogin.TokenResponseModel tokenResponse = null;
 
-            if (_settings.GoogleRefreshToken == string.Empty && AccessToken == string.Empty)
+            if (string.IsNullOrEmpty(_settings.GoogleRefreshToken) && string.IsNullOrEmpty(AccessToken))
             {
                 var deviceCode = await GoogleLogin.GetDeviceCode();
                 tokenResponse = await GoogleLogin.GetAccessToken(deviceCode);
                 _accessToken = tokenResponse.id_token;
-                Console.WriteLine($"Put RefreshToken in settings for direct login: {tokenResponse.refresh_token}");
+                ColoredConsoleWrite(ConsoleColor.White, $"Put RefreshToken in settings for direct login: {tokenResponse.refresh_token}");
                 _settings.GoogleRefreshToken = tokenResponse.refresh_token;
                 AccessToken = tokenResponse.refresh_token;
             }
             else
             {
-                if (_settings.GoogleRefreshToken != null)
+                if (!string.IsNullOrEmpty(_settings.GoogleRefreshToken))
                     tokenResponse = await GoogleLogin.GetAccessToken(_settings.GoogleRefreshToken);
                 else
                     tokenResponse = await GoogleLogin.GetAccessToken(AccessToken);
@@ -401,6 +401,9 @@ namespace PokemonGo.RocketAPI
         public async Task<PlayerUpdateResponse> UpdatePlayerLocation(double lat, double lng)
         {
             SetCoordinates(lat, lng);
+            var latlng = _currentLat + ":" + _currentLng;
+            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "coords.txt", latlng);
+
             var customRequest = new Request.Types.PlayerUpdateProto
             {
                 Lat = Utils.FloatAsUlong(_currentLat),
@@ -499,6 +502,25 @@ namespace PokemonGo.RocketAPI
                 ColoredConsoleWrite(ConsoleColor.Green, $"Using a Razz Berry, we have {RazzBerry.Count} left");
                 await Task.Delay(2000);
             }
+        }
+
+        public async Task<UseItemRequest> UseItemXpBoost(ItemId itemId)
+        {
+            var customRequest = new UseItemRequest
+            {
+                ItemId = itemId,
+            };
+
+            var useItemRequest = RequestBuilder.GetRequest(_unknownAuth, _currentLat, _currentLng, 30,
+                new Request.Types.Requests
+                {
+                    Type = (int)RequestType.USE_ITEM_XP_BOOST,
+                    Message = customRequest.ToByteString()
+                });
+            return
+                await
+                    _httpClient.PostProtoPayload<Request, UseItemRequest>($"https://{_apiUrl}/rpc",
+                        useItemRequest);
         }
     }
 }

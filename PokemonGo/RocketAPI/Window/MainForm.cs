@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -41,6 +41,8 @@ namespace PokemonGo.RocketAPI.Window
         private static DateTime TimeStarted = DateTime.Now;
         public static DateTime InitSessionDateTime = DateTime.Now;
 
+        Client client;
+
         public static double GetRuntime()
         {
             return ((DateTime.Now - TimeStarted).TotalSeconds) / 3600;
@@ -64,14 +66,10 @@ namespace PokemonGo.RocketAPI.Window
                             match.Groups[2],
                             match.Groups[3],
                             match.Groups[4]));
-                if (gitVersion <= Assembly.GetExecutingAssembly().GetName().Version)
-                {
-                    ColoredConsoleWrite(Color.Green, "Awesome! You have already got the newest version! " + Assembly.GetExecutingAssembly().GetName().Version);
-                    return;
-                }
-
-                ColoredConsoleWrite(Color.Red, "There is a new Version available: " + gitVersion);
-                ColoredConsoleWrite(Color.Red, "You can find it at https://github.com/DetectiveSquirrel/Pokemon-Go-Rocket-API");
+                // makes sense to display your version and say what the current one is on github
+                ColoredConsoleWrite(Color.Green, "Your version is " + Assembly.GetExecutingAssembly().GetName().Version);
+                ColoredConsoleWrite(Color.Green, "Github version is " + gitVersion);
+                ColoredConsoleWrite(Color.Green, "You can find it at https://github.com/DetectiveSquirrel/Pokemon-Go-Rocket-API");
             }
             catch (Exception)
             {
@@ -97,7 +95,12 @@ namespace PokemonGo.RocketAPI.Window
             string textToAppend = "[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text + "\r\n";
             logTextBox.SelectionColor = color;
             logTextBox.AppendText(textToAppend);
-            File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + @"\Logs.txt", "[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text + "\n");
+
+            object syncRoot = new object();
+            lock (syncRoot) // Added locking to prevent text file trying to be accessed by two things at the same time
+            {
+                File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + @"\Logs.txt", "[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text + "\n");
+            }
         }
 
         public void SetStatusText(string text)
@@ -164,15 +167,20 @@ namespace PokemonGo.RocketAPI.Window
 
         private async void Execute()
         {
-            var client = new Client(ClientSettings);
+            client = new Client(ClientSettings);
             try
             {
                 switch (ClientSettings.AuthType)
                 {
                     case AuthType.Ptc:
+                        ColoredConsoleWrite(Color.Green, "Attempting to log into Pokemon Trainers Club..");
                         await client.DoPtcLogin(ClientSettings.PtcUsername, ClientSettings.PtcPassword);
                         break;
                     case AuthType.Google:
+                        ColoredConsoleWrite(Color.Green, "Attempting to log into Google..");
+                        if (ClientSettings.GoogleRefreshToken == "")
+                            ColoredConsoleWrite(Color.Green, "Now opening www.Google.com/device and copying the 8 digit code to your clipboard");
+                        
                         await client.DoGoogleLogin();
                         break;
                 }
@@ -229,6 +237,9 @@ namespace PokemonGo.RocketAPI.Window
                     case "cp":
                         await TransferAllWeakPokemon(client, ClientSettings.TransferCPThreshold);
                         break;
+                    case "iv":
+                        await TransferAllGivenPokemons(client, pokemons, ClientSettings.TransferIVThreshold);
+                        break;
                     default:
                         ColoredConsoleWrite(Color.DarkGray, "Transfering pokemon disabled");
                         break;
@@ -242,7 +253,7 @@ namespace PokemonGo.RocketAPI.Window
                 await Task.Delay(5000);
                 PrintLevel(client);
                 await ExecuteFarmingPokestopsAndPokemons(client);
-                ColoredConsoleWrite(Color.Red, $"No nearby usefull locations found. Please wait 10 seconds.");
+                ColoredConsoleWrite(Color.Red, $"No nearby useful locations found. Please wait 10 seconds.");
                 await Task.Delay(10000);
                 CheckVersion();
                 Execute();
@@ -305,6 +316,7 @@ namespace PokemonGo.RocketAPI.Window
                 var update = await client.UpdatePlayerLocation(pokemon.Latitude, pokemon.Longitude);
                 var encounterPokemonResponse = await client.EncounterPokemon(pokemon.EncounterId, pokemon.SpawnpointId);
                 var pokemonCP = encounterPokemonResponse?.WildPokemon?.PokemonData?.Cp;
+                var pokemonIV = Math.Round(Perfect(encounterPokemonResponse?.WildPokemon?.PokemonData));
                 CatchPokemonResponse caughtPokemonResponse;
                 do
                 {
@@ -327,15 +339,16 @@ namespace PokemonGo.RocketAPI.Window
                 }
                 else
                     pokemonName = Convert.ToString(pokemon.PokemonId);
+
                 if (caughtPokemonResponse.Status == CatchPokemonResponse.Types.CatchStatus.CatchSuccess)
                 {
-                    ColoredConsoleWrite(Color.Green, $"We caught a {pokemonName} with {encounterPokemonResponse?.WildPokemon?.PokemonData?.Cp} CP");
+                    ColoredConsoleWrite(Color.Green, $"We caught a {pokemonName} with {pokemonCP} CP and {pokemonIV}% IV");
                     foreach (int xp in caughtPokemonResponse.Scores.Xp)
                         TotalExperience += xp;
                     TotalPokemon += 1;
                 }
                 else
-                    ColoredConsoleWrite(Color.Red, $"{pokemonName} with {encounterPokemonResponse?.WildPokemon?.PokemonData?.Cp} CP got away..");
+                    ColoredConsoleWrite(Color.Red, $"{pokemonName} with {pokemonCP} CP and {pokemonIV}% IV got away..");
 
                 if (ClientSettings.TransferType == "leaveStrongest")
                     await TransferAllButStrongestUnwantedPokemon(client);
@@ -345,6 +358,8 @@ namespace PokemonGo.RocketAPI.Window
                     await TransferDuplicatePokemon(client);
                 else if (ClientSettings.TransferType == "cp")
                     await TransferAllWeakPokemon(client, ClientSettings.TransferCPThreshold);
+                else if (ClientSettings.TransferType == "iv")
+                    await TransferAllGivenPokemons(client, pokemons2, ClientSettings.TransferIVThreshold);
 
                 await Task.Delay(3000);
             }
@@ -482,7 +497,8 @@ namespace PokemonGo.RocketAPI.Window
                     string pokemonName;
                     if (ClientSettings.Language == "german")
                     {
-                        ColoredConsoleWrite(Color.DarkCyan, "german");
+                        // Dont really need to print this do we? youll know if its German or not
+                        //ColoredConsoleWrite(Color.DarkCyan, "german");
                         string name_english = Convert.ToString(pokemon.PokemonId);
                         var request = (HttpWebRequest)WebRequest.Create("http://boosting-service.de/pokemon/index.php?pokeName=" + name_english);
                         var response = (HttpWebResponse)request.GetResponse();
@@ -774,6 +790,42 @@ namespace PokemonGo.RocketAPI.Window
         private void statsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // todo: add player stats later
+        }
+
+        private async void useLuckyEggToolStripMenuItem_Click(object sender ,EventArgs e)
+        {
+            if (client != null)
+            {
+                try
+                {
+                    IEnumerable<Item> myItems = await client.GetItems(client);
+                    IEnumerable<Item> LuckyEggs = myItems.Where(i => (ItemId)i.Item_ == ItemId.ItemLuckyEgg);
+                    Item LuckyEgg = LuckyEggs.FirstOrDefault();
+                    if (LuckyEgg != null)
+                    {
+                        var useItemXpBoostRequest = await client.UseItemXpBoost(ItemId.ItemLuckyEgg);
+                        ColoredConsoleWrite(Color.Green, $"Using a Lucky Egg, we have {LuckyEgg.Count} left.");
+                        ColoredConsoleWrite(Color.Yellow, $"Lucky Egg Valid until: {DateTime.Now.AddMinutes(30).ToString()}");
+                        
+                        var stripItem = sender as ToolStripMenuItem;
+                        stripItem.Enabled = false;
+                        await Task.Delay(30000);
+                        stripItem.Enabled = true;
+                    }
+                    else
+                    {
+                        ColoredConsoleWrite(Color.Red, $"You don't have any Lucky Egg to use.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ColoredConsoleWrite(Color.Red, $"Unhandled exception in using lucky egg: {ex}");
+                }
+            }
+            else
+            {
+                ColoredConsoleWrite(Color.Red, "Please start the bot before trying to use a lucky egg.");
+            }
         }
     }
 }

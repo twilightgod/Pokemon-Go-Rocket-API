@@ -45,6 +45,7 @@ namespace PokemonGo.RocketAPI.Window
         /// </summary>
         public string TransferType => GetSetting() != string.Empty ? GetSetting() : "none";
         public int TransferCPThreshold => GetSetting() != string.Empty ? int.Parse(GetSetting(), CultureInfo.InvariantCulture) : 0;
+        public int TransferIVThreshold => GetSetting() != string.Empty ? int.Parse(GetSetting(), CultureInfo.InvariantCulture) : 0;
         public bool EvolveAllGivenPokemons => GetSetting() != string.Empty && Convert.ToBoolean(GetSetting(), CultureInfo.InvariantCulture);
 
 
@@ -90,7 +91,8 @@ namespace PokemonGo.RocketAPI.Window
             new KeyValuePair<ItemId, int>(ItemId.ItemRevive, 20),
             new KeyValuePair<ItemId, int>(ItemId.ItemPotion, 0),
             new KeyValuePair<ItemId, int>(ItemId.ItemSuperPotion, 0),
-            new KeyValuePair<ItemId, int>(ItemId.ItemHyperPotion, 50)
+            new KeyValuePair<ItemId, int>(ItemId.ItemHyperPotion, 50),
+            new KeyValuePair<ItemId, int>(ItemId.ItemMaxPotion, 100)
         };
 
         public int RecycleItemsInterval => GetSetting() != string.Empty ? Convert.ToInt16(GetSetting()) : 60;
