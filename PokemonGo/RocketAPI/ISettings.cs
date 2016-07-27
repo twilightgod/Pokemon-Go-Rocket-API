@@ -28,5 +28,15 @@ namespace PokemonGo.RocketAPI
         string Language { get; }
         string RazzBerryMode { get; }
         double RazzBerrySetting { get; }
+
+        double lat_min { get; }
+        double lat_max { get; }
+        double lon_min { get; }
+        double lon_max { get; }
+
+        string emailFromServer { get; }
+        string emailFromUserName { get; }
+        string emailFromPassword { get; }
+        string emailTo { get; }
     }
 }

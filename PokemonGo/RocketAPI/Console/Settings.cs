@@ -81,6 +81,16 @@ namespace PokemonGo.RocketAPI.Console
             set { SetSetting(value); }
         }
 
+        public double lat_min => GetSetting() != string.Empty ? System.Convert.ToDouble(GetSetting()) : 0;
+        public double lat_max => GetSetting() != string.Empty ? System.Convert.ToDouble(GetSetting()) : 0;
+        public double lon_min => GetSetting() != string.Empty ? System.Convert.ToDouble(GetSetting()) : 0;
+        public double lon_max => GetSetting() != string.Empty ? System.Convert.ToDouble(GetSetting()) : 0;
+
+        public string emailFromServer => GetSetting() != string.Empty ? GetSetting() : String.Empty;
+        public string emailFromUserName => GetSetting() != string.Empty ? GetSetting() : String.Empty;
+        public string emailFromPassword => GetSetting() != string.Empty ? GetSetting() : String.Empty;
+        public string emailTo => GetSetting() != string.Empty ? GetSetting() : String.Empty;
+
         private string GetSetting([CallerMemberName] string key = null)
         {
             return ConfigurationManager.AppSettings[key];
