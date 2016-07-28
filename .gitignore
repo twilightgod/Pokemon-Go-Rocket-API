@@ -6,3 +6,5 @@ packages
 bin/
 obj/
 /PokemonGo/RocketAPI/Proto/google/protobuf
+/PokemonGo/RocketAPI/obj/
+App.config

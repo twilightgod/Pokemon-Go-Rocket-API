@@ -91,6 +91,8 @@ namespace PokemonGo.RocketAPI.Console
         public string emailFromPassword => GetSetting() != string.Empty ? GetSetting() : String.Empty;
         public string emailTo => GetSetting() != string.Empty ? GetSetting() : String.Empty;
 
+        public string linkPrefix => GetSetting() != string.Empty ? GetSetting() : String.Empty;
+
         private string GetSetting([CallerMemberName] string key = null)
         {
             return ConfigurationManager.AppSettings[key];

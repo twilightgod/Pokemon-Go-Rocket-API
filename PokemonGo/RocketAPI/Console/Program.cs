@@ -20,6 +20,7 @@ using System.Text;
 using Google.Protobuf;
 using PokemonGo.RocketAPI.Helpers;
 using System.IO;
+using System.Net.Mail;
 
 
 #endregion
@@ -34,6 +35,9 @@ namespace PokemonGo.RocketAPI.Console
         private static int TotalPokemon = 0;
         private static DateTime TimeStarted = DateTime.Now;
         public static DateTime InitSessionDateTime = DateTime.Now;
+
+        private static string LogFolderName = @"c:\logs\";
+        private static string LogFileName = String.Format("{0}.txt", TimeStarted.ToString("yyyy_MM_dd_HH_mm_ss"));
 
         private static HashSet<String> WantedList = new HashSet<string>()
         {
@@ -109,7 +113,7 @@ namespace PokemonGo.RocketAPI.Console
             "MEW",
         };
 
-        private static HashSet<String> SeenPokemonList = new HashSet<string>();
+        private static Dictionary<String, DateTime> SeenPokemonList = new Dictionary<string, DateTime>();
 
         public static double GetRuntime()
         {
@@ -121,7 +125,13 @@ namespace PokemonGo.RocketAPI.Console
             ConsoleColor originalColor = System.Console.ForegroundColor;
             System.Console.ForegroundColor = color;
             System.Console.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text);
-            File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + @"\Logs.txt", "[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text + "\n");
+
+            if (!Directory.Exists(LogFolderName))
+            {
+                Directory.CreateDirectory(LogFolderName);
+            }
+
+            File.AppendAllText(Path.Combine(LogFolderName, LogFileName), "[" + DateTime.Now.ToString("HH:mm:ss tt") + "] " + text + Environment.NewLine);
             System.Console.ForegroundColor = originalColor;
         }
         
@@ -180,12 +190,12 @@ namespace PokemonGo.RocketAPI.Console
                 //CheckVersion();
                 //Execute();
             }
-            catch (TaskCanceledException) { ColoredConsoleWrite(ConsoleColor.Red, "Task Canceled Exception - Restarting");}
-            catch (UriFormatException) { ColoredConsoleWrite(ConsoleColor.Red, "System URI Format Exception - Restarting");}
-            catch (ArgumentOutOfRangeException) { ColoredConsoleWrite(ConsoleColor.Red, "ArgumentOutOfRangeException - Restarting");}
-            catch (ArgumentNullException) { ColoredConsoleWrite(ConsoleColor.Red, "Argument Null Refference - Restarting");}
-            catch (NullReferenceException) { ColoredConsoleWrite(ConsoleColor.Red, "Null Refference - Restarting");}
-            catch (Exception ex) { ColoredConsoleWrite(ConsoleColor.Red, ex.ToString());}
+            //catch (TaskCanceledException) { ColoredConsoleWrite(ConsoleColor.Red, "Task Canceled Exception - Restarting");}
+            //catch (UriFormatException) { ColoredConsoleWrite(ConsoleColor.Red, "System URI Format Exception - Restarting");}
+            //catch (ArgumentOutOfRangeException) { ColoredConsoleWrite(ConsoleColor.Red, "ArgumentOutOfRangeException - Restarting");}
+            //catch (ArgumentNullException) { ColoredConsoleWrite(ConsoleColor.Red, "Argument Null Refference - Restarting");}
+            //catch (NullReferenceException) { ColoredConsoleWrite(ConsoleColor.Red, "Null Refference - Restarting");}
+            catch (Exception ex) { ColoredConsoleWrite(ConsoleColor.Red, ex.ToString()); throw ex; }
         }
 
         private static async Task GetNearbyPokemons(Client client, double lat, double lon)
@@ -228,109 +238,113 @@ namespace PokemonGo.RocketAPI.Console
                 else*/
 
                 string pokemonName = Convert.ToString(pokemon.PokemonId).ToUpper();
+                DateTime expiredTime = UnixTimeStampToDateTime(pokemon.ExpirationTimestampMs);
 
                 string hash = String.Format("{0}|{1}|{2:F15}|{3:F15}", pokemonName, pokemon.SpawnpointId, pokemon.Latitude, pokemon.Longitude);
 
-                if (!SeenPokemonList.Contains(hash))
+                if (!SeenPokemonList.ContainsKey(hash))
                 {
-                    SeenPokemonList.Add(hash);
-                    ColoredConsoleWrite(ConsoleColor.Cyan, String.Format("{0} {1} {2} {3} {4}", pokemonName, pokemon.Latitude, pokemon.Longitude, UnixTimeStampToDateTime(pokemon.ExpirationTimestampMs).ToString(), hash));
+                    SeenPokemonList.Add(hash, expiredTime);
+                    ColoredConsoleWrite(ConsoleColor.Cyan, String.Format("{0} {1},{2} {3} {4}", pokemonName, pokemon.Latitude, pokemon.Longitude, expiredTime.ToString(), hash));
 
                     if (WantedList.Contains(pokemonName))
                     {
                         //Notify
                         ColoredConsoleWrite(ConsoleColor.Red, "Found!");
+                        
+                        await SendEmail(client, pokemon);
                     }
                 }
                 else
                 {
                     ColoredConsoleWrite(ConsoleColor.Cyan, "Dup");
                 }
-
-
-
-
-
-                /*
-                if (caughtPokemonResponse.Status == CatchPokemonResponse.Types.CatchStatus.CatchSuccess)
-                {
-                    ColoredConsoleWrite(ConsoleColor.Green, $"We caught a {pokemonName} with {pokemonCP} CP and {pokemonIV}% IV");
-                    foreach (int xp in caughtPokemonResponse.Scores.Xp)
-                        TotalExperience += xp;
-                    TotalPokemon += 1;
-                }
-                else
-                    ColoredConsoleWrite(ConsoleColor.Red, $"{pokemonName} with {pokemonCP} CP and {pokemonIV}% IV");
-
-                if (ClientSettings.TransferType == "leaveStrongest")
-                    await TransferAllButStrongestUnwantedPokemon(client);
-                else if (ClientSettings.TransferType == "all")
-                    await TransferAllGivenPokemons(client, pokemons2);
-                else if (ClientSettings.TransferType == "duplicate")
-                    await TransferDuplicatePokemon(client);
-                else if (ClientSettings.TransferType == "cp")
-                    await TransferAllWeakPokemon(client, ClientSettings.TransferCPThreshold);
-                else if (ClientSettings.TransferType == "iv")
-                    await TransferAllGivenPokemons(client, pokemons2, ClientSettings.TransferIVThreshold);
-
-                await Task.Delay(3000);
-                */
             }
         }
 
-        /*
-        private static async Task ExecuteFarmingPokestopsAndPokemons(Client client)
+        private static double Perfect(PokemonData pokemonData)
         {
-            var mapObjects = await client.GetMapObjects();
-
-            var pokeStops = mapObjects.MapCells.SelectMany(i => i.Forts).Where(i => i.Type == FortType.Checkpoint && i.CooldownCompleteTimestampMs < DateTime.UtcNow.ToUnixTime());
-
-            foreach (var pokeStop in pokeStops)
-            {
-                var update = await client.UpdatePlayerLocation(pokeStop.Latitude, pokeStop.Longitude);
-                var fortInfo = await client.GetFort(pokeStop.Id, pokeStop.Latitude, pokeStop.Longitude);
-                var fortSearch = await client.SearchFort(pokeStop.Id, pokeStop.Latitude, pokeStop.Longitude);
-
-                StringWriter PokeStopOutput = new StringWriter();
-                PokeStopOutput.Write($"");
-                if (fortInfo.Name != string.Empty)
-                    PokeStopOutput.Write("PokeStop: " + fortInfo.Name);
-                if (fortSearch.ExperienceAwarded != 0)
-                    PokeStopOutput.Write($", XP: {fortSearch.ExperienceAwarded}");
-                if (fortSearch.GemsAwarded != 0)
-                    PokeStopOutput.Write($", Gems: {fortSearch.GemsAwarded}");
-                if (fortSearch.PokemonDataEgg != null)
-                    PokeStopOutput.Write($", Eggs: {fortSearch.PokemonDataEgg}");
-                if (GetFriendlyItemsString(fortSearch.ItemsAwarded) != string.Empty)
-                    PokeStopOutput.Write($", Items: {GetFriendlyItemsString(fortSearch.ItemsAwarded)} ");
-                ColoredConsoleWrite(ConsoleColor.Cyan, PokeStopOutput.ToString());
-
-                if (fortSearch.ExperienceAwarded != 0)
-                    TotalExperience += (fortSearch.ExperienceAwarded);
-                await Task.Delay(15000);
-                await ExecuteCatchAllNearbyPokemons(client);
-            }
+            return (pokemonData.IndividualAttack + pokemonData.IndividualDefense + pokemonData.IndividualStamina) / 45.0;
         }
-        */
 
         private static async Task Travel(Client client)
         {
-            SeenPokemonList.Clear();
             double step = 0.0020;
             for (double lat = client._settings.lat_min; lat <= client._settings.lat_max; lat += step)
             {
                 for (double lon = client._settings.lon_min; lon <= client._settings.lon_max; lon += step)
                 {
-                    ColoredConsoleWrite(ConsoleColor.Gray, String.Format("Current lat/lon: {0}/{1}", lat, lon));
-                    await GetNearbyPokemons(client, lat, lon);
-                    await Task.Delay(1000);
+                    try
+                    {
+                        ColoredConsoleWrite(ConsoleColor.Gray, String.Format("Current lat,lon: {0},{1}", lat, lon));
+                        await GetNearbyPokemons(client, lat, lon);
+                        await Task.Delay(2 * 1000);
+                    }
+                    catch (Exception ex)
+                    {
+                        ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
+                    }
                 }
             }
         }
 
-        private static void SendEmail(Client client)
+        private static async Task SendEmail(Client client, MapPokemon pokemon)
         {
+            try
+            {
+                double pokemonIV = 0;
 
+                try
+                {
+                    var encounterPokemonResponse = await client.EncounterPokemon(pokemon.EncounterId, pokemon.SpawnpointId);
+                    pokemonIV = Perfect(encounterPokemonResponse?.WildPokemon?.PokemonData);
+                }
+                catch (Exception ex)
+                {
+                    ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
+                }
+
+                DateTime expiredTime = UnixTimeStampToDateTime(pokemon.ExpirationTimestampMs);
+                string pokemonName = Convert.ToString(pokemon.PokemonId).ToUpper();
+
+                string msg = String.Format("Pokemon: {1}{0}Pokedex: {2}{0}Map: {3}{0}Link: {4}{0}",
+                    Environment.NewLine,
+                    String.Format("  Name: {1}{0}  Rating: {2:F2}{0}  Expire Time:{3}{0}", Environment.NewLine, pokemonName, pokemonIV, expiredTime.ToString()),
+                    String.Format("http://www.pokemon.com/us/pokedex/{0}", pokemonName),
+                    String.Format("http://maps.google.com/?q={0},{1}", pokemon.Latitude, pokemon.Longitude),
+                    String.Format("{0}?lat={1}&lon={2}", client._settings.linkPrefix, pokemon.Latitude, pokemon.Longitude)
+                    );
+
+
+                MailMessage message = new MailMessage(client._settings.emailFromUserName, client._settings.emailTo);
+                message.Subject = String.Format("Pokemon found: {0}", pokemonName);
+                message.Body = msg;
+                SmtpClient smtpClient = new SmtpClient(client._settings.emailFromServer);
+                smtpClient.Port = 587;
+                smtpClient.EnableSsl = true;
+                smtpClient.Credentials = new NetworkCredential(client._settings.emailFromUserName, client._settings.emailFromPassword);
+                smtpClient.Send(message);
+
+                ColoredConsoleWrite(ConsoleColor.Cyan, "email sent");
+            }
+            catch (Exception ex)
+            {
+                ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
+            }
+        }
+
+        private static void RemoveExpiredPokemon(Client client)
+        {
+            var expiredList = SeenPokemonList.Where(kvp => kvp.Value <= DateTime.Now).ToList();
+
+            foreach (var kvp in expiredList)
+            {
+                SeenPokemonList.Remove(kvp.Key);
+                ColoredConsoleWrite(ConsoleColor.Gray, "remove expired pokemon: " + kvp.Key + kvp.Value.ToString());
+            }
+
+            ColoredConsoleWrite(ConsoleColor.Gray, "Total removed: " + expiredList.Count);
+            ColoredConsoleWrite(ConsoleColor.Gray, "Total remaining: " + SeenPokemonList.Count);
         }
 
         private static void Main(string[] args)
@@ -341,10 +355,23 @@ namespace PokemonGo.RocketAPI.Console
                 {
                     var client = new Client(ClientSettings);
                     await Login(client);
-                    //await GetNearbyPokemons(client, 47.61250655050066, -122.2007668018341);
-                    await Travel(client);
-                    ColoredConsoleWrite(ConsoleColor.Red, SeenPokemonList.Count.ToString());
-                    System.Console.ReadKey();
+                    SeenPokemonList.Clear();
+                    while ((DateTime.Now - TimeStarted).TotalMinutes < 30)
+                    {
+                        try
+                        {
+                            await Travel(client);
+                            RemoveExpiredPokemon(client);
+                            //wait for 90s
+                            await Task.Delay(15 * 1000);
+                        }
+                        catch (Exception ex)
+                        {
+                            ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
+                        }
+                    }
+                    //ColoredConsoleWrite(ConsoleColor.Red, SeenPokemonList.Count.ToString());
+                    //System.Console.ReadKey();
                 }
                 catch (PtcOfflineException)
                 {
@@ -354,8 +381,8 @@ namespace PokemonGo.RocketAPI.Console
                 {
                     ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
                 }
-            });
-            System.Console.ReadLine();
+            }).Wait();
+            //System.Console.ReadLine();
         }
 
         public static DateTime UnixTimeStampToDateTime(double unixTimeStamp)

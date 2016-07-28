@@ -38,5 +38,7 @@ namespace PokemonGo.RocketAPI
         string emailFromUserName { get; }
         string emailFromPassword { get; }
         string emailTo { get; }
+
+        string linkPrefix { get; }
     }
 }
