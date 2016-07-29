@@ -54,7 +54,6 @@ namespace PokemonGo.RocketAPI.Console
             "NIDOQUEEN",
             "NIDOKING",
             "CLEFABLE",
-            "VULPIX",
             "NINETALES",
             "VILEPLUME",
             "DUGTRIO",
@@ -69,6 +68,7 @@ namespace PokemonGo.RocketAPI.Console
             "VICTREEBELL",
             "GRAVELER",
             "GOLEM",
+            "PONYTA",
             "RAPIDASH",
             "SLOWBRO",
             "MAGNETON",
@@ -111,6 +111,70 @@ namespace PokemonGo.RocketAPI.Console
             "DRAGONITE",
             "MEWTWO",
             "MEW",
+        };
+
+        private static HashSet<String> WantedList2 = new HashSet<string>()
+        {
+            "BULBASAUR",
+            "CHARMENDER",
+            "SQUIRTLE",
+            "BUTTERFREE",
+            "BEEDRILL",
+            "PIDGEOT",
+            "FEAROW",
+            "EKANS",
+            "SANDSHREW",
+            "NIDORINA",
+            "NIDORINO",
+            "CLEFARY",
+            "VULPIX",
+            "JIGGLYPUFF",
+            "WIGGLYTUFF",
+            "GOLBAT",
+            "GLOOM",
+            "PARASECT",
+            "VENOMOTH",
+            "DIGLETT",
+            "MEOWTH",
+            "PSYDUCK",
+            "GOLDUCK",
+            "MANKEY",
+            "GROWLITHE",
+            "POLIWHIRL",
+            "ABRA",
+            "MACHOKE",
+            "WEEPINBELL",
+            "TENTACRUEL",
+            "GEODUGE",
+            "SLOWPOKE",
+            "MAGNEMITE",
+            "SEEL",
+            "CLOYSTER",
+            "GASTLY",
+            "HAUNTER",
+            "ONIX",
+            "DROWZEE",
+            "HYPNO",
+            "KRABBY",
+            "KINGLER",
+            "CUBONE",
+            "LICKITUNG",
+            "KOFFING",
+            "RHYHORN",
+            "RHYDON",
+            "TANGELA",
+            "HORSEA",
+            "SEADRA",
+            "GOLDEEN",
+            "SEAKING",
+            "STARYU",
+            "STARMIE",
+            "SCYTHER",
+            "JYNX",
+            "ELECTABUZZ",
+            "TAUROS",
+            "MAGIKARP",
+            "EEVEE",
         };
 
         private static Dictionary<String, DateTime> SeenPokemonList = new Dictionary<string, DateTime>();
@@ -247,12 +311,25 @@ namespace PokemonGo.RocketAPI.Console
                     SeenPokemonList.Add(hash, expiredTime);
                     ColoredConsoleWrite(ConsoleColor.Cyan, String.Format("{0} {1},{2} {3} {4}", pokemonName, pokemon.Latitude, pokemon.Longitude, expiredTime.ToString(), hash));
 
-                    if (WantedList.Contains(pokemonName))
+                    // Calculate IV rating
+                    double pokemonIV = -1;
+
+                    try
+                    {
+                        var encounterPokemonResponse = await client.EncounterPokemon(pokemon.EncounterId, pokemon.SpawnpointId);
+                        pokemonIV = Perfect(encounterPokemonResponse?.WildPokemon?.PokemonData);
+                    }
+                    catch (Exception ex)
+                    {
+                        ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
+                    }
+
+                    if (WantedList.Contains(pokemonName) || WantedList2.Contains(pokemonName) && pokemonIV >= 0.95 || pokemonIV >= 0.97)
                     {
                         //Notify
                         ColoredConsoleWrite(ConsoleColor.Red, "Found!");
                         
-                        await SendEmail(client, pokemon);
+                        await SendEmail(client, pokemon, pokemonIV);
                     }
                 }
                 else
@@ -278,7 +355,7 @@ namespace PokemonGo.RocketAPI.Console
                     {
                         ColoredConsoleWrite(ConsoleColor.Gray, String.Format("Current lat,lon: {0},{1}", lat, lon));
                         await GetNearbyPokemons(client, lat, lon);
-                        await Task.Delay(2 * 1000);
+                        await Task.Delay(1 * 1000);
                     }
                     catch (Exception ex)
                     {
@@ -288,28 +365,16 @@ namespace PokemonGo.RocketAPI.Console
             }
         }
 
-        private static async Task SendEmail(Client client, MapPokemon pokemon)
+        private static async Task SendEmail(Client client, MapPokemon pokemon, double pokemonIV)
         {
             try
             {
-                double pokemonIV = 0;
-
-                try
-                {
-                    var encounterPokemonResponse = await client.EncounterPokemon(pokemon.EncounterId, pokemon.SpawnpointId);
-                    pokemonIV = Perfect(encounterPokemonResponse?.WildPokemon?.PokemonData);
-                }
-                catch (Exception ex)
-                {
-                    ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
-                }
-
                 DateTime expiredTime = UnixTimeStampToDateTime(pokemon.ExpirationTimestampMs);
                 string pokemonName = Convert.ToString(pokemon.PokemonId).ToUpper();
 
                 string msg = String.Format("Pokemon: {1}{0}Pokedex: {2}{0}Map: {3}{0}Link: {4}{0}",
                     Environment.NewLine,
-                    String.Format("  Name: {1}{0}  Rating: {2:F2}{0}  Expire Time:{3}{0}", Environment.NewLine, pokemonName, pokemonIV, expiredTime.ToString()),
+                    String.Format("{0}  Name: {1}{0}  Rating: {2:F2}{0}  Expire Time:{3}", Environment.NewLine, pokemonName, pokemonIV, expiredTime.ToString()),
                     String.Format("http://www.pokemon.com/us/pokedex/{0}", pokemonName),
                     String.Format("http://maps.google.com/?q={0},{1}", pokemon.Latitude, pokemon.Longitude),
                     String.Format("{0}?lat={1}&lon={2}", client._settings.linkPrefix, pokemon.Latitude, pokemon.Longitude)
@@ -317,7 +382,7 @@ namespace PokemonGo.RocketAPI.Console
 
 
                 MailMessage message = new MailMessage(client._settings.emailFromUserName, client._settings.emailTo);
-                message.Subject = String.Format("Pokemon found: {0}", pokemonName);
+                message.Subject = String.Format("{0} {1}", pokemonName, pokemonIV);
                 message.Body = msg;
                 SmtpClient smtpClient = new SmtpClient(client._settings.emailFromServer);
                 smtpClient.Port = 587;
@@ -363,13 +428,14 @@ namespace PokemonGo.RocketAPI.Console
                             await Travel(client);
                             RemoveExpiredPokemon(client);
                             //wait for 90s
-                            await Task.Delay(15 * 1000);
+                            await Task.Delay(5 * 1000);
                         }
                         catch (Exception ex)
                         {
                             ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
                         }
                     }
+                    
                     //ColoredConsoleWrite(ConsoleColor.Red, SeenPokemonList.Count.ToString());
                     //System.Console.ReadKey();
                 }
