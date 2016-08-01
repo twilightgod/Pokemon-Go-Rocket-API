@@ -21,6 +21,7 @@ using Google.Protobuf;
 using PokemonGo.RocketAPI.Helpers;
 using System.IO;
 using System.Net.Mail;
+using System.Configuration;
 
 
 #endregion
@@ -29,14 +30,13 @@ namespace PokemonGo.RocketAPI.Console
 {
     internal class Program
     {
-        private static ISettings ClientSettings = new Settings();
         private static int Currentlevel = -1;
         private static int TotalExperience = 0;
         private static int TotalPokemon = 0;
         private static DateTime TimeStarted = DateTime.Now;
         public static DateTime InitSessionDateTime = DateTime.Now;
 
-        private static string LogFolderName = @"c:\logs\";
+        private static string LogFolderName = String.Format(@"c:\logs\{0:MM}\{0:dd}", TimeStarted);
         private static string LogFileName = String.Format("{0}.txt", TimeStarted.ToString("yyyy_MM_dd_HH_mm_ss"));
 
         private static HashSet<String> WantedList = new HashSet<string>()
@@ -73,7 +73,6 @@ namespace PokemonGo.RocketAPI.Console
             "SLOWBRO",
             "MAGNETON",
             "FARFETCHD",
-            "DODUO",
             "DODRIO",
             "DEWGONG",
             "GRIMER",
@@ -175,6 +174,7 @@ namespace PokemonGo.RocketAPI.Console
             "TAUROS",
             "MAGIKARP",
             "EEVEE",
+            "DODUO",
         };
 
         private static Dictionary<String, DateTime> SeenPokemonList = new Dictionary<string, DateTime>();
@@ -203,10 +203,10 @@ namespace PokemonGo.RocketAPI.Console
         {
             try
             {
-                switch (ClientSettings.AuthType)
+                switch (client._settings.AuthType)
                 {
                     case AuthType.Ptc:
-                        await client.DoPtcLogin(ClientSettings.PtcUsername, ClientSettings.PtcPassword);
+                        await client.DoPtcLogin(client._settings.PtcUsername, client._settings.PtcPassword);
                         break;
                     case AuthType.Google:
                         await client.DoGoogleLogin();
@@ -224,16 +224,16 @@ namespace PokemonGo.RocketAPI.Console
 
                 // Write the players ingame details
                 ColoredConsoleWrite(ConsoleColor.Yellow, "----------------------------");
-                if (ClientSettings.AuthType == AuthType.Ptc)
+                if (client._settings.AuthType == AuthType.Ptc)
                 {
-                    ColoredConsoleWrite(ConsoleColor.Cyan, "Account: " + ClientSettings.PtcUsername);
+                    ColoredConsoleWrite(ConsoleColor.Cyan, "Account: " + client._settings.PtcUsername);
                 //    ColoredConsoleWrite(ConsoleColor.Cyan, "Password: " + ClientSettings.PtcPassword + "\n");
                 }
                 ColoredConsoleWrite(ConsoleColor.DarkGray, "Name: " + profile.Profile.Username);
-                ColoredConsoleWrite(ConsoleColor.DarkGray, "Team: " + profile.Profile.Team);
-                if (profile.Profile.Currency.ToArray()[0].Amount > 0) // If player has any pokecoins it will show how many they have.
-                    ColoredConsoleWrite(ConsoleColor.DarkGray, "Pokecoins: " + profile.Profile.Currency.ToArray()[0].Amount);
-                ColoredConsoleWrite(ConsoleColor.DarkGray, "Stardust: " + profile.Profile.Currency.ToArray()[1].Amount + "\n");
+                //ColoredConsoleWrite(ConsoleColor.DarkGray, "Team: " + profile.Profile.Team);
+                //if (profile.Profile.Currency.ToArray()[0].Amount > 0) // If player has any pokecoins it will show how many they have.
+                  //  ColoredConsoleWrite(ConsoleColor.DarkGray, "Pokecoins: " + profile.Profile.Currency.ToArray()[0].Amount);
+                //ColoredConsoleWrite(ConsoleColor.DarkGray, "Stardust: " + profile.Profile.Currency.ToArray()[1].Amount + "\n");
                 //ColoredConsoleWrite(ConsoleColor.DarkGray, "Latitude: " + ClientSettings.DefaultLatitude);
                 //ColoredConsoleWrite(ConsoleColor.DarkGray, "Longitude: " + ClientSettings.DefaultLongitude);
                 /*
@@ -309,7 +309,6 @@ namespace PokemonGo.RocketAPI.Console
                 if (!SeenPokemonList.ContainsKey(hash))
                 {
                     SeenPokemonList.Add(hash, expiredTime);
-                    ColoredConsoleWrite(ConsoleColor.Cyan, String.Format("{0} {1},{2} {3} {4}", pokemonName, pokemon.Latitude, pokemon.Longitude, expiredTime.ToString(), hash));
 
                     // Calculate IV rating
                     double pokemonIV = -1;
@@ -323,6 +322,8 @@ namespace PokemonGo.RocketAPI.Console
                     {
                         ColoredConsoleWrite(ConsoleColor.Red, $"Unhandled exception: {ex}");
                     }
+
+                    ColoredConsoleWrite(ConsoleColor.Cyan, String.Format("{0} {1},{2} {3} {4} {5}", pokemonName, pokemon.Latitude, pokemon.Longitude, expiredTime.ToString(), pokemonIV, hash));
 
                     if (WantedList.Contains(pokemonName) || WantedList2.Contains(pokemonName) && pokemonIV >= 0.95 || pokemonIV >= 0.97)
                     {
@@ -355,7 +356,7 @@ namespace PokemonGo.RocketAPI.Console
                     {
                         ColoredConsoleWrite(ConsoleColor.Gray, String.Format("Current lat,lon: {0},{1}", lat, lon));
                         await GetNearbyPokemons(client, lat, lon);
-                        await Task.Delay(1 * 1000);
+                        await Task.Delay(5 * 1000);
                     }
                     catch (Exception ex)
                     {
@@ -372,17 +373,18 @@ namespace PokemonGo.RocketAPI.Console
                 DateTime expiredTime = UnixTimeStampToDateTime(pokemon.ExpirationTimestampMs);
                 string pokemonName = Convert.ToString(pokemon.PokemonId).ToUpper();
 
-                string msg = String.Format("Pokemon: {1}{0}Pokedex: {2}{0}Map: {3}{0}Link: {4}{0}",
+                string msg = String.Format("Pokemon: {1}{0}Pokedex: {2}{0}Map: {3}{0}Link: {4}{0}Email Time: {5}{0}",
                     Environment.NewLine,
                     String.Format("{0}  Name: {1}{0}  Rating: {2:F2}{0}  Expire Time:{3}", Environment.NewLine, pokemonName, pokemonIV, expiredTime.ToString()),
                     String.Format("http://www.pokemon.com/us/pokedex/{0}", pokemonName),
                     String.Format("http://maps.google.com/?q={0},{1}", pokemon.Latitude, pokemon.Longitude),
-                    String.Format("{0}?lat={1}&lon={2}", client._settings.linkPrefix, pokemon.Latitude, pokemon.Longitude)
+                    String.Format("{0}?lat={1}&lon={2}", client._settings.linkPrefix, pokemon.Latitude, pokemon.Longitude),
+                    DateTime.Now.ToString()
                     );
 
 
                 MailMessage message = new MailMessage(client._settings.emailFromUserName, client._settings.emailTo);
-                message.Subject = String.Format("{0} {1}", pokemonName, pokemonIV);
+                message.Subject = String.Format("{0} {1:F2}", pokemonName, pokemonIV);
                 message.Body = msg;
                 SmtpClient smtpClient = new SmtpClient(client._settings.emailFromServer);
                 smtpClient.Port = 587;
@@ -414,11 +416,18 @@ namespace PokemonGo.RocketAPI.Console
 
         private static void Main(string[] args)
         {
+            string customAppConfigPath = null;
+
+            if (args.Length > 0)
+            {
+                customAppConfigPath = args[0];
+            }
+
             Task.Run(async () =>
             {
                 try
                 {
-                    var client = new Client(ClientSettings);
+                    var client = new Client(new Settings(customAppConfigPath));
                     await Login(client);
                     SeenPokemonList.Clear();
                     while ((DateTime.Now - TimeStarted).TotalMinutes < 30)

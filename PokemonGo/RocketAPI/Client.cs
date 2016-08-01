@@ -41,7 +41,7 @@ namespace PokemonGo.RocketAPI
         public Client(ISettings settings)
         {
             _settings = settings;
-            SetCoordinates(_settings.DefaultLatitude, _settings.DefaultLongitude);
+            //SetCoordinates(_settings.DefaultLatitude, _settings.DefaultLongitude);
 
             //Setup HttpClient and create default headers
             var handler = new HttpClientHandler
@@ -116,8 +116,8 @@ namespace PokemonGo.RocketAPI
                 _accessToken = await PtcLogin.GetAccessToken(username, password);
                 _authType = AuthType.Ptc;
             }
-            catch (Newtonsoft.Json.JsonReaderException) { ColoredConsoleWrite(ConsoleColor.White, "Json Reader Exception - Server down? - Restarting"); DoPtcLogin(username, password); }
-            catch (Exception ex) { ColoredConsoleWrite(ConsoleColor.White, ex.ToString() + "Exception - Please report - Restarting"); DoPtcLogin(username, password); }
+            catch (Newtonsoft.Json.JsonReaderException) { ColoredConsoleWrite(ConsoleColor.White, "Json Reader Exception - Server down? - Restarting"); /*DoPtcLogin(username, password);*/ }
+            catch (Exception ex) { ColoredConsoleWrite(ConsoleColor.White, ex.ToString() + "Exception - Please report - Restarting"); /*DoPtcLogin(username, password);*/ }
         }
 
         public async Task<EncounterResponse> EncounterPokemon(ulong encounterId, string spawnPointGuid)
@@ -432,20 +432,6 @@ namespace PokemonGo.RocketAPI
             return myItems
                 .Where(x => settings.ItemRecycleFilter.Any(f => f.Key == ((ItemId)x.Item_) && x.Count > f.Value))
                 .Select(x => new Item { Item_ = x.Item_, Count = x.Count - settings.ItemRecycleFilter.Single(f => f.Key == (AllEnum.ItemId)x.Item_).Value, Unseen = x.Unseen });
-        }
-
-        public async Task RecycleItems(Client client)
-        {
-            var items = await GetItemsToRecycle(_settings, client);
-
-            foreach (var item in items)
-            {
-                var transfer = await RecycleItem((AllEnum.ItemId)item.Item_, item.Count);
-                ColoredConsoleWrite(ConsoleColor.DarkCyan, $"Recycled {item.Count}x {((AllEnum.ItemId)item.Item_).ToString().Substring(4)}");
-                await Task.Delay(500);
-            }
-            await Task.Delay(_settings.RecycleItemsInterval * 1000);
-            RecycleItems(client);
         }
 
         public async Task<Response.Types.Unknown6> RecycleItem(AllEnum.ItemId itemId, int amount)

@@ -14,9 +14,18 @@ namespace PokemonGo.RocketAPI.Console
 {
     public class Settings : ISettings
     {
-        /// <summary>
-        ///     Don't touch. User settings are in Console/App.config
-        /// </summary>
+        private Configuration CustomAppConfig = null;
+
+        public Settings(string appConfigPath = null)
+        {
+            if (!String.IsNullOrEmpty(appConfigPath))
+            {
+                var configMap = new ExeConfigurationFileMap();
+                configMap.ExeConfigFilename = appConfigPath;
+                CustomAppConfig = ConfigurationManager.OpenMappedExeConfiguration(configMap, ConfigurationUserLevel.None);
+            }
+        }
+
         public string TransferType => GetSetting() != string.Empty ? GetSetting() : "none";
         public int TransferCPThreshold => GetSetting() != string.Empty ? int.Parse(GetSetting(), CultureInfo.InvariantCulture) : 0;
         public int TransferIVThreshold => GetSetting() != string.Empty ? int.Parse(GetSetting(), CultureInfo.InvariantCulture) : 0;
@@ -95,24 +104,31 @@ namespace PokemonGo.RocketAPI.Console
 
         private string GetSetting([CallerMemberName] string key = null)
         {
-            return ConfigurationManager.AppSettings[key];
+            if (CustomAppConfig != null)
+            {
+                return CustomAppConfig.AppSettings.Settings[key].Value;
+            }
+            else
+            {
+                return ConfigurationManager.AppSettings[key];
+            }
         }
 
         private void SetSetting(string value, [CallerMemberName] string key = null)
         {
-            var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (key != null) configFile.AppSettings.Settings[key].Value = value;
-            configFile.Save();
+            //var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            //if (key != null) configFile.AppSettings.Settings[key].Value = value;
+            //configFile.Save();
         }
 
         private void SetSetting(double value, [CallerMemberName] string key = null)
         {
-            CultureInfo customCulture = (CultureInfo)System.Threading.Thread.CurrentThread.CurrentCulture.Clone();
-            customCulture.NumberFormat.NumberDecimalSeparator = ".";
-            System.Threading.Thread.CurrentThread.CurrentCulture = customCulture;
-            var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-            if (key != null) configFile.AppSettings.Settings[key].Value = value.ToString();
-            configFile.Save();
+            //CultureInfo customCulture = (CultureInfo)System.Threading.Thread.CurrentThread.CurrentCulture.Clone();
+            //customCulture.NumberFormat.NumberDecimalSeparator = ".";
+            //System.Threading.Thread.CurrentThread.CurrentCulture = customCulture;
+            //var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            //if (key != null) configFile.AppSettings.Settings[key].Value = value.ToString();
+            //configFile.Save();
         }
     }
 }
