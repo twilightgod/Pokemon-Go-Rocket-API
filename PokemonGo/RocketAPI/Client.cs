@@ -41,7 +41,7 @@ namespace PokemonGo.RocketAPI
         public Client(ISettings settings)
         {
             _settings = settings;
-            //SetCoordinates(_settings.DefaultLatitude, _settings.DefaultLongitude);
+            SetCoordinates(_settings.lat_min, _settings.lon_min);
 
             //Setup HttpClient and create default headers
             var handler = new HttpClientHandler
@@ -355,7 +355,7 @@ namespace PokemonGo.RocketAPI
                         fortDetailRequest);
         }
 
-        private void SetCoordinates(double lat, double lng)
+        public void SetCoordinates(double lat, double lng)
         {
             _currentLat = lat;
             _currentLng = lng;
@@ -402,7 +402,7 @@ namespace PokemonGo.RocketAPI
         {
             SetCoordinates(lat, lng);
             var latlng = _currentLat + ":" + _currentLng;
-            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "coords.txt", latlng);
+           // File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "coords.txt", latlng);
 
             var customRequest = new Request.Types.PlayerUpdateProto
             {

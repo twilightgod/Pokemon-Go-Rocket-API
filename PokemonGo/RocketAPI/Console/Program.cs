@@ -70,6 +70,7 @@ namespace PokemonGo.RocketAPI.Console
             "GOLEM",
             "PONYTA",
             "RAPIDASH",
+            "TENTACRUEL",
             "SLOWBRO",
             "MAGNETON",
             "FARFETCHD",
@@ -128,7 +129,6 @@ namespace PokemonGo.RocketAPI.Console
             "CLEFARY",
             "VULPIX",
             "JIGGLYPUFF",
-            "WIGGLYTUFF",
             "GOLBAT",
             "GLOOM",
             "PARASECT",
@@ -143,7 +143,6 @@ namespace PokemonGo.RocketAPI.Console
             "ABRA",
             "MACHOKE",
             "WEEPINBELL",
-            "TENTACRUEL",
             "GEODUGE",
             "SLOWPOKE",
             "MAGNEMITE",
@@ -264,7 +263,8 @@ namespace PokemonGo.RocketAPI.Console
 
         private static async Task GetNearbyPokemons(Client client, double lat, double lon)
         {
-            var update = await client.UpdatePlayerLocation(lat, lon);
+            //var update = await client.UpdatePlayerLocation(lat, lon);
+            client.SetCoordinates(lat, lon);
 
             var mapObjects = await client.GetMapObjects();
 
@@ -356,7 +356,7 @@ namespace PokemonGo.RocketAPI.Console
                     {
                         ColoredConsoleWrite(ConsoleColor.Gray, String.Format("Current lat,lon: {0},{1}", lat, lon));
                         await GetNearbyPokemons(client, lat, lon);
-                        await Task.Delay(5 * 1000);
+                        await Task.Delay(10 * 1000);
                     }
                     catch (Exception ex)
                     {
@@ -437,7 +437,7 @@ namespace PokemonGo.RocketAPI.Console
                             await Travel(client);
                             RemoveExpiredPokemon(client);
                             //wait for 90s
-                            await Task.Delay(5 * 1000);
+                            await Task.Delay(10 * 1000);
                         }
                         catch (Exception ex)
                         {
