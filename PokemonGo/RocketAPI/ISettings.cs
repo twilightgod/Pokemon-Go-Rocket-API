@@ -23,7 +23,7 @@ namespace PokemonGo.RocketAPI
         int TransferCPThreshold { get; }
         int TransferIVThreshold { get; }
         bool Recycler { get; }
-        ICollection<KeyValuePair<AllEnum.ItemId, int>> ItemRecycleFilter { get; }
+        //ICollection<KeyValuePair<AllEnum.ItemId, int>> ItemRecycleFilter { get; }
         int RecycleItemsInterval { get; }
         string Language { get; }
         string RazzBerryMode { get; }

@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using PokemonGo.RocketAPI.Enums;
 using System.Collections.Generic;
-using AllEnum;
+//using AllEnum;
 using System;
 
 #endregion
@@ -56,6 +56,7 @@ namespace PokemonGo.RocketAPI.Console
 
         public bool Recycler => GetSetting() != string.Empty ? System.Convert.ToBoolean(GetSetting(), CultureInfo.InvariantCulture) : false;
 
+        /*
         ICollection<KeyValuePair<ItemId, int>> ISettings.ItemRecycleFilter
         {
             get
@@ -74,7 +75,7 @@ namespace PokemonGo.RocketAPI.Console
                     new KeyValuePair<ItemId, int>(ItemId.ItemHyperPotion, 50)
                 };
             }
-        }
+        }*/
 
         public int RecycleItemsInterval => GetSetting() != string.Empty ? Convert.ToInt16(GetSetting()) : 60;
 
